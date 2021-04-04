@@ -25,7 +25,7 @@ def shuffleData(sent_list):
     shuffled_sent_list = np.array(sent_list)[shuffled_indices]
     return shuffled_sent_list
 
-    
+
 def convertDataToPickle(fn, pickle_fn, is_shuffle=False):
     f = open(fn, "r")
     sents = []
@@ -58,10 +58,10 @@ def buildVocab(sentences, min_cnt=2):
 
 def buildEmbed(vocab_list, embed_fn, word_limit=250000):
     # sanity check: vocab_list should be a list instead of dictionary
-    if (type(vocab_list) != type([1,2])):
+    if (type(vocab_list) != type([1, 2])):
         print("vocab type: {}, not a list!".format(type(vocab_list)))
         sys.exit(0)
-    
+
     print("load pretrained word embeddings...")
     f = open(embed_fn, "r")
     header = f.readline()
@@ -109,22 +109,21 @@ def buildVocabEmbed(train_pkl_list, train_tsf_pkl, embed_fn, raw_vec_path, save_
         all_sents += list(sents)
     # joint vocab of orig and tsf data, vocab (dictionary), vocab_inv (list)
     vocab, vocab_inv = buildVocab(all_sents)
-    with open(save_folder+"vocab.pkl", "wb") as handle:
+    with open(save_folder + "vocab.pkl", "wb") as handle:
         pickle.dump(vocab, handle)
-    with open(save_folder+"vocab_inv.pkl", "wb") as handle:
+    with open(save_folder + "vocab_inv.pkl", "wb") as handle:
         pickle.dump(vocab_inv, handle)
     print("Joint vocab size:", len(vocab))
     print("Example vocab words:", vocab_inv[:10])
 
-    
     # joint word embedding for train corpus
     init_embed = buildEmbed(vocab_inv, embed_fn, 40000)
     # save raw_dataset_vec.txt for tuning
-    f =  open(raw_vec_path, "w")
+    f = open(raw_vec_path, "w")
     vocab_size = len(vocab)
-    f.write(str(vocab_size)+" "+str(VEC_DIM)+"\n")
+    f.write(str(vocab_size) + " " + str(VEC_DIM) + "\n")
     for (word, vec) in zip(vocab_inv, init_embed):
-        f.write(word+" "+" ".join([str(val) for val in vec])+"\n")
+        f.write(word + " " + " ".join([str(val) for val in vec]) + "\n")
     f.close()
     print("saving raw vecs for tuning...")
     del all_sents, vocab, vocab_inv
@@ -134,9 +133,9 @@ def buildVocabEmbed(train_pkl_list, train_tsf_pkl, embed_fn, raw_vec_path, save_
         train_tsf_sents = pickle.load(handle)
     train_tsf_sents = list(train_tsf_sents)
     tsf_vocab, tsf_vocab_inv = buildVocab(train_tsf_sents)
-    with open(save_folder+"tsf_vocab.pkl", "wb") as handle:
+    with open(save_folder + "tsf_vocab.pkl", "wb") as handle:
         pickle.dump(tsf_vocab, handle)
-    with open(save_folder+"tsf_vocab_inv.pkl", "wb") as handle:
+    with open(save_folder + "tsf_vocab_inv.pkl", "wb") as handle:
         pickle.dump(tsf_vocab_inv, handle)
     print("Transfer vocab size:", len(tsf_vocab))
     print("Examples tsf vocab:", tsf_vocab_inv[:10])
@@ -155,47 +154,46 @@ def combineTrainCorpus(orig_txt, tsf_txt, save_path=None):
     shuffled_sents = shuffleData(sents)
     g = open(save_path, "w")
     for sent in shuffled_sents:
-        g.write(sent+"\n")
+        g.write(sent + "\n")
     g.close()
     print("Saving train corpus to {}".format(save_path))
     return len(sents)
-        
-    
+
+
 def tuneEmbed(train_corpus, total_lines, raw_vec_path, tune_vec_path):
     sentences = LineSentence(train_corpus)
     model = Word2Vec(sentences, size=VEC_DIM, window=6, iter=20, workers=10, min_count=1)
     model.intersect_word2vec_format(raw_vec_path, lockf=1.0, binary=False)
-    # measure runing time
+    # measure running time
     start = time.time()
     model.train(sentences, total_examples=total_lines, epochs=20)
     end = time.time()
-    print("done retraining using time {} s.".format(end-start))
-    #word_vectors = model.mv
+    print("done retraining using time {} s.".format(end - start))
+    # word_vectors = model.mv
     model.wv.save_word2vec_format(tune_vec_path)
     print("done saving tuned word embeddings...")
-    
+
 
 def saveTuneEmbed(save_folder, tune_vec_path):
-    with open(save_folder+"vocab_inv.pkl", "rb") as handle:
+    with open(save_folder + "vocab_inv.pkl", "rb") as handle:
         vocab_list = pickle.load(handle)
     init_embed = buildEmbed(vocab_list, tune_vec_path, word_limit=250000)
-    with open(save_folder+"init_embed.pkl", "wb") as handle:
+    with open(save_folder + "init_embed.pkl", "wb") as handle:
         pickle.dump(init_embed, handle)
     print("saving init_embed shape: {}".format(np.shape(init_embed)))
     del vocab_list, init_embed
-    
-    with open(save_folder+"tsf_vocab_inv.pkl", "rb") as handle:
+
+    with open(save_folder + "tsf_vocab_inv.pkl", "rb") as handle:
         tsf_vocab_list = pickle.load(handle)
     tsf_init_embed = buildEmbed(tsf_vocab_list, tune_vec_path, word_limit=250000)
-    with open(save_folder+"tsf_init_embed.pkl", "wb") as handle:
+    with open(save_folder + "tsf_init_embed.pkl", "wb") as handle:
         pickle.dump(tsf_init_embed, handle)
     print("saving tsf_init_embed shape: {}".format(np.shape(tsf_init_embed)))
 
 
-
-if __name__=="__main__":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_type", type=str, default="gyafc_family") #gyafc_family, yelp
+    parser.add_argument("--data_type", type=str, default="subj_dataset")
     parser.add_argument("--tokenize", default=False, action="store_true")
     parser.add_argument("--vec_dim", type=int, default=100)
     parser.add_argument("--embed_fn", type=str, default=None)
@@ -205,8 +203,8 @@ if __name__=="__main__":
     VEC_DIM = args.vec_dim
     embed_fn = args.embed_fn
 
-    data_folder = "../data/"+str(data_type)+"/"
-    dump_folder = "../dump/"+str(data_type)+"/"
+    data_folder = "../data/" + str(data_type) + "/"
+    dump_folder = "../dump/" + str(data_type) + "/"
     if not os.path.exists("../data/"):
         os.mkdir("../data/")
     if not os.path.exists(data_folder):
@@ -215,7 +213,7 @@ if __name__=="__main__":
         os.mkdir("../dump/")
     if not os.path.exists(dump_folder):
         os.mkdir(dump_folder)
-        
+
     fn_names = ["corpus.train.orig", "corpus.train.tsf", \
                 "corpus.dev.orig", "corpus.dev.tsf", \
                 "corpus.test.orig", "corpus.test.tsf"]
@@ -231,7 +229,7 @@ if __name__=="__main__":
         fn_list = [data_folder + fn for fn in fn_names]
 
     print("saving corpus data to pkl...")
-    pkl_names=  ["train_orig.pkl", "train_tsf.pkl", \
+    pkl_names = ["train_orig.pkl", "train_tsf.pkl", \
                  "dev_orig.pkl", "dev_tsf.pkl", \
                  "test_orig.pkl", "test_tsf.pkl"]
     pkl_list = [dump_folder + pkl for pkl in pkl_names]
@@ -240,12 +238,10 @@ if __name__=="__main__":
         # convert .txt to .pkl
         convertDataToPickle(fn, pkl, is_shuffle=is_shuffle)
 
-
     print("build vocabulary and embedding...")
     raw_vec_path = dump_folder + "raw_vec.txt"
     train_tsf_pkl = pkl_list[1]
     buildVocabEmbed(pkl_list[:2], train_tsf_pkl, embed_fn, raw_vec_path, dump_folder)
-    
 
     # combine and shuffle corpus for embedding tuning
     print("tune embedding on the dataset...")
@@ -256,7 +252,6 @@ if __name__=="__main__":
     tuneEmbed(train_txt, total_lines, raw_vec_path, tune_vec_path)
     # save embedding as init_embed & tsf_init_embed
     saveTuneEmbed(dump_folder, tune_vec_path)
-    
+
     os.system("rm {}".format(raw_vec_path))
     os.system("rm {}".format(train_txt))
-    
